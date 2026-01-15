@@ -1,20 +1,22 @@
 package com.hybridconnect.hybridconnect.controller;
 
+import com.hybridconnect.hybridconnect.dto.ConversationDto;
 import com.hybridconnect.hybridconnect.dto.SendMessageRequest;
 import com.hybridconnect.hybridconnect.entity.Conversation;
 import com.hybridconnect.hybridconnect.entity.Message;
+import com.hybridconnect.hybridconnect.entity.User;
 import com.hybridconnect.hybridconnect.repository.ContactRequestRepository;
 import com.hybridconnect.hybridconnect.repository.ConversationRepository;
 import com.hybridconnect.hybridconnect.repository.MessageRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import com.hybridconnect.hybridconnect.dto.ConversationDto;
 import com.hybridconnect.hybridconnect.repository.ProfilePhotoRepository;
 import com.hybridconnect.hybridconnect.repository.UserRepository;
-import com.hybridconnect.hybridconnect.entity.User;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -29,8 +31,10 @@ public class ChatController {
 
     @Autowired
     private ConversationRepository conversationRepository;
+
     @Autowired
     private MessageRepository messageRepository;
+
     @Autowired
     private ContactRequestRepository contactRequestRepository;
 
@@ -72,7 +76,7 @@ public class ChatController {
         return "Message sent";
     }
 
-    // ✅ My conversations: return "other user ids" list
+    // ✅ My conversations list (ConversationDto list)
     @GetMapping("/conversations")
     public List<ConversationDto> myConversations() {
 
@@ -84,29 +88,32 @@ public class ChatController {
 
             Long otherId = c.getUser1Id().equals(myId) ? c.getUser2Id() : c.getUser1Id();
 
-            // other user name
             User other = userRepository.findById(otherId).orElseThrow();
 
-            // other user primary photo
             String photoUrl = profilePhotoRepository
                     .findFirstByUser_IdAndIsPrimaryTrue(otherId)
                     .map(ph -> "/uploads/" + ph.getFileName())
                     .orElse(null);
 
-            // last message
             Message last = messageRepository
                     .findFirstByConversationIdOrderByCreatedAtDesc(c.getId())
                     .orElse(null);
 
             String lastText = (last == null) ? null : last.getText();
-            var lastAt = (last == null) ? null : last.getCreatedAt();
+            LocalDateTime lastAt = (last == null) ? null : last.getCreatedAt();
 
+            // ✅ unread count for ME
+            Long unread = messageRepository.countByConversationIdAndReceiverIdAndSeenFalse(c.getId(), myId);
+
+            // ✅ IMPORTANT: make sure your ConversationDto has this constructor
             return new ConversationDto(
                     otherId,
                     other.getName(),
                     photoUrl,
                     lastText,
-                    lastAt);
+                    lastAt,
+                    unread);
+
         }).toList();
     }
 
@@ -137,5 +144,21 @@ public class ChatController {
         }
 
         return messageRepository.findChatBetween(myId, otherUserId);
+    }
+
+    // ✅ Mark messages as seen
+    @PutMapping("/messages/seen/{conversationId}")
+    @Transactional
+    public String markSeen(@PathVariable Long conversationId) {
+
+        Long myId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        Conversation c = conversationRepository.findById(conversationId).orElseThrow();
+        if (!(c.getUser1Id().equals(myId) || c.getUser2Id().equals(myId))) {
+            throw new RuntimeException("Not allowed");
+        }
+
+        int updated = messageRepository.markSeen(conversationId, myId, LocalDateTime.now());
+        return "Seen updated: " + updated;
     }
 }

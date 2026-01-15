@@ -24,14 +24,25 @@ public class SecurityConfig {
                                 .csrf(csrf -> csrf.disable())
                                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
+                                                // ✅ allow static test page + static files
                                                 .requestMatchers(
                                                                 "/api/auth/**",
                                                                 "/api/profiles/public/**",
                                                                 "/api/ads/public/**",
                                                                 "/uploads/**",
                                                                 "/api/chat/**",
+                                                                "/ws/**",
+                                                                "/static/**",
+                                                                "/ws-test.html",
+                                                                "/favicon.ico",
+                                                                "/css/**",
+                                                                "/js/**",
+
                                                                 "/test")
                                                 .permitAll()
+                                                // ✅ allow websocket handshake endpoints (ඔයාගේ config අනුව)
+                                                .requestMatchers("/ws/**", "/sockjs/**").permitAll()
+
                                                 .anyRequest().authenticated())
                                 .formLogin(form -> form.disable())
                                 .httpBasic(basic -> basic.disable());

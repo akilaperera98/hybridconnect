@@ -25,6 +25,13 @@ public class Message {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    // ✅ NEW: seen status
+    @Column(nullable = false)
+    private Boolean seen = false;
+
+    // ✅ NEW: when it was seen
+    private LocalDateTime seenAt;
+
     public Message() {
     }
 
@@ -52,6 +59,14 @@ public class Message {
         return createdAt;
     }
 
+    public Boolean getSeen() {
+        return seen;
+    }
+
+    public LocalDateTime getSeenAt() {
+        return seenAt;
+    }
+
     public void setConversationId(Long conversationId) {
         this.conversationId = conversationId;
     }
@@ -67,4 +82,13 @@ public class Message {
     public void setText(String text) {
         this.text = text;
     }
+
+    public void setSeen(Boolean seen) {
+        this.seen = seen;
+    }
+
+    public void setSeenAt(LocalDateTime seenAt) {
+        this.seenAt = seenAt;
+    }
+
 }

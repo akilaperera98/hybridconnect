@@ -3,22 +3,29 @@ package com.hybridconnect.hybridconnect.dto;
 import java.time.LocalDateTime;
 
 public class ConversationDto {
+
     private Long otherUserId;
     private String otherUserName;
     private String otherUserPrimaryPhotoUrl;
     private String lastMessage;
     private LocalDateTime lastMessageAt;
+    private Long unreadCount;
 
     public ConversationDto() {
     }
 
-    public ConversationDto(Long otherUserId, String otherUserName, String otherUserPrimaryPhotoUrl,
-            String lastMessage, LocalDateTime lastMessageAt) {
+    public ConversationDto(Long otherUserId,
+            String otherUserName,
+            String otherUserPrimaryPhotoUrl,
+            String lastMessage,
+            LocalDateTime lastMessageAt,
+            Long unreadCount) {
         this.otherUserId = otherUserId;
         this.otherUserName = otherUserName;
         this.otherUserPrimaryPhotoUrl = otherUserPrimaryPhotoUrl;
         this.lastMessage = lastMessage;
         this.lastMessageAt = lastMessageAt;
+        this.unreadCount = unreadCount;
     }
 
     public Long getOtherUserId() {
@@ -59,5 +66,13 @@ public class ConversationDto {
 
     public void setLastMessageAt(LocalDateTime lastMessageAt) {
         this.lastMessageAt = lastMessageAt;
+    }
+
+    public Long getUnreadCount() {
+        return unreadCount;
+    }
+
+    public void setUnreadCount(Long unreadCount) {
+        this.unreadCount = unreadCount;
     }
 }

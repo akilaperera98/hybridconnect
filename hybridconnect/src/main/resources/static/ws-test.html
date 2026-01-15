@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>WS Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; }
+    input { padding: 6px; margin: 6px 0; }
+    button { padding: 6px 12px; margin-right: 8px; }
+    #log { border: 1px solid #ddd; padding: 10px; height: 260px; overflow: auto; background: #fafafa; }
+    .row { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h3>WebSocket Chat Test</h3>
+
+  <div class="row">
+    Token:
+    <input id="token" style="width: 850px" placeholder="Paste JWT token here" />
+  </div>
+
+  <div class="row">
+    ToUserId:
+    <input id="to" value="2" style="width: 120px" />
+  </div>
+
+  <div class="row">
+    Text:
+    <input id="text" value="Hello realtime!" style="width: 400px" />
+  </div>
+
+  <div class="row">
+    <button onclick="connectWs()">Connect</button>
+    <button onclick="disconnectWs()">Disconnect</button>
+    <button onclick="sendMsg()">Send</button>
+    <button onclick="clearLog()">Clear Log</button>
+  </div>
+
+  <pre id="log"></pre>
+
+<script>
+  let stompClient = null;
+
+  function log(msg){
+    const el = document.getElementById("log");
+    el.textContent += msg + "\n";
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function clearLog(){
+    document.getElementById("log").textContent = "";
+  }
+
+  function connectWs(){
+    const token = (document.getElementById("token").value || "").trim();
+    if(!token){
+      alert("Token එක paste කරන්න");
+      return;
+    }
+
+    // SockJS endpoint
+    const socket = new SockJS('/ws');
+    stompClient = Stomp.over(socket);
+
+    // optional: disable debug spam
+    stompClient.debug = null;
+
+    // STOMP CONNECT headers
+    const headers = { Authorization: "Bearer " + token };
+
+    stompClient.connect(headers, function(frame){
+      log("✅ CONNECTED: " + frame);
+
+      // subscribe private queue
+      stompClient.subscribe("/user/queue/messages", function(message){
+        log("📩 RECEIVED: " + message.body);
+      });
+
+      log("✅ Subscribed: /user/queue/messages");
+    }, function(err){
+      log("❌ ERROR: " + JSON.stringify(err));
+    });
+  }
+
+  function disconnectWs(){
+    if(stompClient){
+      stompClient.disconnect(() => log("👋 DISCONNECTED"));
+      stompClient = null;
+    }
+  }
+
+  function sendMsg(){
+    if(!stompClient){
+      alert("මුලින් Connect කරන්න");
+      return;
+    }
+
+    const token = (document.getElementById("token").value || "").trim();
+    const toUserId = parseInt(document.getElementById("to").value, 10);
+    const text = (document.getElementById("text").value || "").trim();
+
+    if(!toUserId || !text){
+      alert("ToUserId සහ Text දෙකම දාන්න");
+      return;
+    }
+
+    // IMPORTANT:
+    // Some server implementations also read Authorization from each SEND frame.
+    // So we pass it here too (safe).
+    const sendHeaders = { Authorization: "Bearer " + token };
+
+    stompClient.send("/app/chat.send", sendHeaders, JSON.stringify({ toUserId, text }));
+    log("📤 SENT to " + toUserId + ": " + text);
+  }
+</script>
+</body>
+</html>
