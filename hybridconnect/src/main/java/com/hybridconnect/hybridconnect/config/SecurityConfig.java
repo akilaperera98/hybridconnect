@@ -29,6 +29,7 @@ public class SecurityConfig {
                                                                 "/api/profiles/public/**",
                                                                 "/api/ads/public/**",
                                                                 "/uploads/**",
+                                                                "/api/chat/**",
                                                                 "/test")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
