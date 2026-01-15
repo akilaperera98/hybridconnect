@@ -34,6 +34,7 @@ public class SecurityConfig {
                                                                 "/ws/**",
                                                                 "/static/**",
                                                                 "/ws-test.html",
+                                                                "/chat.html",
                                                                 "/favicon.ico",
                                                                 "/css/**",
                                                                 "/js/**",
