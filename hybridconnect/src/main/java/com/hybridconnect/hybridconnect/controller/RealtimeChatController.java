@@ -1,6 +1,8 @@
 package com.hybridconnect.hybridconnect.controller;
 
 import com.hybridconnect.hybridconnect.dto.WsSendMessageRequest;
+import com.hybridconnect.hybridconnect.dto.WsTypingEvent;
+import com.hybridconnect.hybridconnect.dto.WsTypingRequest;
 import com.hybridconnect.hybridconnect.entity.Conversation;
 import com.hybridconnect.hybridconnect.entity.Message;
 import com.hybridconnect.hybridconnect.repository.ContactRequestRepository;
@@ -25,7 +27,6 @@ public class RealtimeChatController {
             ConversationRepository conversationRepository,
             MessageRepository messageRepository,
             ContactRequestRepository contactRequestRepository) {
-
         this.messagingTemplate = messagingTemplate;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
@@ -33,16 +34,15 @@ public class RealtimeChatController {
     }
 
     // client sends to: /app/chat.send
-    @MessageMapping("/chat.send")
+    @MessageMapping("chat.send")
     public void send(WsSendMessageRequest req, Principal principal) {
 
-        // ✅ must have principal (set by WebSocketJwtInterceptor)
         if (principal == null || principal.getName() == null)
             return;
 
         Long myId;
         try {
-            myId = Long.parseLong(principal.getName()); // principal name == "1" / "2"
+            myId = Long.parseLong(principal.getName());
         } catch (Exception e) {
             return;
         }
@@ -60,7 +60,7 @@ public class RealtimeChatController {
         if (!accepted)
             return;
 
-        // ✅ find or create conversation (store smaller id first)
+        // ✅ find or create conversation
         Long a = Math.min(myId, otherId);
         Long b = Math.max(myId, otherId);
 
@@ -80,16 +80,53 @@ public class RealtimeChatController {
 
         Message saved = messageRepository.save(m);
 
-        // ✅ receiver subscribes: /user/queue/messages
+        // ✅ push message live to receiver
         messagingTemplate.convertAndSendToUser(
                 otherId.toString(),
                 "/queue/messages",
                 saved);
 
-        // ✅ optional: push to sender also
+        // ✅ push to sender also (so sender UI updates without optimistic add)
         messagingTemplate.convertAndSendToUser(
                 myId.toString(),
                 "/queue/messages",
                 saved);
+
+        // ✅ stop typing immediately when message sent (nice UX)
+        WsTypingEvent stopTyping = new WsTypingEvent(myId, otherId, false);
+        messagingTemplate.convertAndSendToUser(otherId.toString(), "/queue/typing", stopTyping);
+        messagingTemplate.convertAndSendToUser(myId.toString(), "/queue/typing", stopTyping);
+    }
+
+    // client sends to: /app/chat.typing
+    @MessageMapping("chat.typing")
+    public void typing(WsTypingRequest req, Principal principal) {
+        if (principal == null || principal.getName() == null)
+            return;
+
+        Long myId;
+        try {
+            myId = Long.parseLong(principal.getName());
+        } catch (Exception e) {
+            return;
+        }
+
+        if (req == null || req.toUserId == null)
+            return;
+
+        Long otherId = req.toUserId;
+
+        // ✅ allow typing events only if accepted (optional but recommended)
+        boolean accepted = contactRequestRepository.existsAcceptedBetweenUsers(myId, otherId);
+        if (!accepted)
+            return;
+
+        WsTypingEvent event = new WsTypingEvent(myId, otherId, req.typing);
+
+        // receiver sees "X is typing"
+        messagingTemplate.convertAndSendToUser(otherId.toString(), "/queue/typing", event);
+
+        // sender also gets event (useful to instantly clear own typing UI)
+        messagingTemplate.convertAndSendToUser(myId.toString(), "/queue/typing", event);
     }
 }
